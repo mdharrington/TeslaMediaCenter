@@ -769,6 +769,7 @@
         <input class="yt-search-input" type="text" id="yt-direct-id"
           placeholder="Paste a YouTube URL or ID (e.g. https://youtu.be/dQw4w9WgXcQ)"
           onkeydown="if(event.key==='Enter') ytLoadDirect()">
+        <button class="yt-search-btn" onclick="pasteInto('yt-direct-id')">📋 Paste</button>
         <button class="yt-search-btn" onclick="ytLoadDirect()">▶ Load</button>
       </div>
       <!-- Search bar -->
@@ -776,9 +777,19 @@
         <input class="yt-search-input" type="text" id="yt-search-input"
           placeholder="Search YouTube... (e.g. lofi, podcast, music)"
           onkeydown="if(event.key==='Enter') ytSearch()">
+        <button class="yt-search-btn" onclick="pasteInto('yt-search-input')">📋 Paste</button>
         <button class="yt-search-btn" id="yt-search-btn" onclick="ytSearch()">🔍 Search</button>
-        <button class="yt-search-btn" id="yt-key-btn" onclick="setYtKey()" title="Set your YouTube API key">🔑 API key</button>
+        <button class="yt-search-btn" id="yt-key-btn" onclick="toggleKeyRow()" title="Set your YouTube API key">🔑 API key</button>
       </div>
+      <!-- API key row (hidden until the key button is pressed) -->
+      <div class="yt-search-bar" id="yt-key-row" style="display:none">
+        <input class="yt-search-input" type="text" id="yt-key-input" autocomplete="off" autocapitalize="off" spellcheck="false"
+          placeholder="YouTube Data API key (starts with AIza...)"
+          onkeydown="if(event.key==='Enter') saveYtKey()">
+        <button class="yt-search-btn" onclick="pasteInto('yt-key-input')">📋 Paste</button>
+        <button class="yt-search-btn" onclick="saveYtKey()">💾 Save</button>
+      </div>
+      <div class="yt-results-empty" id="yt-msg" style="display:none"></div>
       <!-- Results -->
       <div class="yt-results" id="yt-results"></div>
       <div class="yt-wrap">
@@ -2103,10 +2114,43 @@ async function ytSearchInvidious(query) {
 
 const YT_KEY_STORAGE = 'tmc_yt_api_key';
 function getYtKey() { try { return localStorage.getItem(YT_KEY_STORAGE) || ''; } catch (e) { return ''; } }
-function setYtKey() {
-  const k = prompt('Paste your YouTube Data API key (leave empty to remove it):', getYtKey());
-  if (k === null) return;
-  try { k.trim() ? localStorage.setItem(YT_KEY_STORAGE, k.trim()) : localStorage.removeItem(YT_KEY_STORAGE); } catch (e) {}
+function ytMsg(text) {
+  const el = document.getElementById('yt-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = 'block';
+  clearTimeout(ytMsg._t);
+  ytMsg._t = setTimeout(() => { el.style.display = 'none'; }, 7000);
+}
+function toggleKeyRow() {
+  const row = document.getElementById('yt-key-row');
+  const show = row.style.display === 'none';
+  row.style.display = show ? 'flex' : 'none';
+  if (show) {
+    const k = getYtKey();
+    document.getElementById('yt-key-input').value = '';
+    ytMsg(k ? 'A key is saved (ends in ' + k.slice(-4) + '). Paste a new one to replace it, or Save with an empty box to remove it.'
+            : 'No key saved yet. Paste your key and press Save.');
+  }
+}
+function saveYtKey() {
+  const v = document.getElementById('yt-key-input').value.trim();
+  try {
+    if (v) { localStorage.setItem(YT_KEY_STORAGE, v); ytMsg('Key saved (ends in ' + v.slice(-4) + '). Search will now use the YouTube API.'); }
+    else { localStorage.removeItem(YT_KEY_STORAGE); ytMsg('Key removed.'); }
+  } catch (e) { ytMsg('Could not save: this browser is blocking local storage.'); }
+}
+// Paste button: reads the clipboard into a text field (the browser may ask permission or block it)
+async function pasteInto(id) {
+  const el = document.getElementById(id);
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t) { ytMsg('Clipboard is empty. Copy the text first.'); return; }
+    el.value = t.trim();
+    el.focus();
+  } catch (e) {
+    ytMsg('The browser blocked pasting from the clipboard. Try pressing and holding in the box, or type it in.');
+  }
 }
 function decodeEntities(t) { const x = document.createElement('textarea'); x.innerHTML = t; return x.value; }
 function escHtml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
