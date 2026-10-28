@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tesla browser probe</title>
+<style>
+  body { background:#05080d; color:#c5d8e8; font:18px/1.5 monospace; padding:20px; }
+  h1 { font-size:22px; color:#e8a800; }
+  h2 { font-size:18px; color:#00c882; margin-top:24px; }
+  pre { white-space:pre-wrap; word-break:break-word; background:#0c1220; padding:12px; border-radius:8px; }
+</style>
+</head>
+<body>
+<h1>Tesla browser probe</h1>
+<p>Take a photo or screenshot of this page and send it back.</p>
+
+<h2>Browser</h2>
+<pre id="ua">...</pre>
+
+<h2>Feature support</h2>
+<pre id="feat">...</pre>
+
+<h2>Non-standard globals (window properties a clean browser does not have)</h2>
+<pre id="extra">...</pre>
+
+<h2>Names that look vehicle-related</h2>
+<pre id="veh">...</pre>
+
+<script>
+function show(id, text) { document.getElementById(id).textContent = text; }
+try {
+  show('ua', navigator.userAgent + '\nvisibility: ' + document.visibilityState);
+  show('feat', [
+    'wakeLock: ' + ('wakeLock' in navigator),
+    'AudioContext: ' + !!(window.AudioContext || window.webkitAudioContext),
+    'localStorage: ' + (function () { try { localStorage.setItem('p', '1'); return localStorage.getItem('p') === '1'; } catch (e) { return false; } })(),
+    'fetch: ' + ('fetch' in window),
+    'getBattery: ' + ('getBattery' in navigator),
+    'geolocation: ' + ('geolocation' in navigator)
+  ].join('\n'));
+
+  // Compare this window with a pristine iframe window to find anything the browser added
+  var frame = document.createElement('iframe');
+  frame.style.display = 'none';
+  document.body.appendChild(frame);
+  var clean = new Set(Object.getOwnPropertyNames(frame.contentWindow));
+  var mine = Object.getOwnPropertyNames(window).filter(function (k) { return !clean.has(k); });
+  var ignore = ['probe', 'show']; // helpers defined by this page
+  mine = mine.filter(function (k) { return ignore.indexOf(k) === -1 && k !== 'frame' && k !== 'clean' && k !== 'mine' && k !== 'ignore'; });
+  show('extra', mine.length ? mine.join('\n') : '(none found)');
+  var veh = mine.filter(function (k) { return /tesla|vehicle|car|gear|shift|speed|batter|odo|charge/i.test(k); });
+  show('veh', veh.length ? veh.join('\n') : '(none found)');
+} catch (e) {
+  show('extra', 'Error: ' + e.message);
+}
+</script>
+</body>
+</html>
